@@ -1,119 +1,69 @@
 #include <crow/tower.h>
-#include <crow/gates/udpgate.h>
-#include <crow/proto/pubsub.h>
 #include <crow/address.h>
-
-#include <igris/trent/trent.h>
-#include <igris/trent/json.h>
-#include <igris/getopt/cliopts.h>
-#include <nos/fprint.h>
-
-#include <igris/osutil.h>
-#include <igris/util/hexascii.h>
+#include <crow/proto/node.h>
+#include <crow/pubsub/publisher.h>
+#include <crow/gates/udpgate.h>
 
 #include <thread>
 #include <chrono>
+#include <string>
 
-#include <sys/time.h>
+#include <igris/trent/trent.h>
+#include <igris/trent/json.h>
+#include <nos/fprint.h>
 
-using namespace std::chrono_literals;
 
-std::string unique_code;
-
-int udpaddr;
-std::string coreaddr;
-std::vector<uint8_t>  crowaddr;
-
-igris::cliopts opts;
-
-#include <unistd.h>
-#include <limits.h>
-#include <pwd.h>
-
-char hostname[HOST_NAME_MAX];
-std::string username;
-
-void thread_function()
+class Node : public crow::node
 {
+	virtual void incoming_packet(crow::packet *pack)
+	{
+		nos::println("incoming_packet");
+		crow::release(pack);
+	}
+
+	virtual void undelivered_packet(crow::packet *pack)
+	{
+		nos::println("undelivered_packet");
+		notify_all(-1);
+		crow::release(pack);
+	}
+};
+
+crow::udpgate ugate;
+crow::hostaddr addr;
+Node alive_sender;
+
+
+int counter = 0;
+void foo()
+{
+	alive_sender.bind(42);
+
 	while (1)
 	{
 		igris::trent tr;
 
-		tr["unique_code"] = unique_code;
-		tr["hostname"] = hostname;
-		tr["username"] = username;
+		tr["mnemo"] = "aidan";
+		tr["count"] = counter++;
 
-		std::string strtr = nos::format("{}", tr);
+		std::string str = nos::format("{}", tr);
 
-		crow::publish(crowaddr, "atom-info", strtr, 0, 10);
-		std::this_thread::sleep_for(1000ms);
-	}
-}
-
-void init_creditionals()
-{
-	gethostname(hostname, HOST_NAME_MAX);
-	
-	auto uid = geteuid ();
-	auto pw = getpwuid (uid);
-	if (pw)
-	{
-		username = std::string(pw->pw_name);
-	}
-}
-
-void init_unique_code()
-{
-	std::string atomnode_file_path = igris::osutil::expanduser("~/.atom-node");
-
-	if (!igris::osutil::isexist(atomnode_file_path))
-	{
-		struct timeval time;
-		gettimeofday(&time, NULL);
-		srand((time.tv_sec * 1000) + (time.tv_usec / 1000));
-
-		char code[64];
-
-		for (int i = 0; i < 64; ++i)
-		{
-			code[i] = half2hex(rand() % 16);
-		}
-
-		FILE * f = fopen(atomnode_file_path.c_str(), "w");
-		fwrite(code, 64, 1, f);
-
-		unique_code = std::string(code, 64);
-	}
-
-	else
-	{
-		char code[64];
-		FILE * f = fopen(atomnode_file_path.c_str(), "r");
-		fread(code, 64, 1, f);
-		unique_code = std::string(code, 64);
+		alive_sender.send(42, addr, str, 0, 50, false);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 }
 
 int main(int argc, char ** argv)
 {
-	init_unique_code();
-	init_creditionals();
+	crow::diagnostic_setup(true);
 
-	opts.add_integer("udp", 'u', 0);
-	opts.add_string("core", 'c', ".12.109.173.108.206:10009");
-	opts.parse(argc, argv);
+	ugate.open(10042);
+	ugate.bind(12);
 
-	udpaddr = opts.get_integer("udp").value();
-	coreaddr = opts.get_string("core").value();
-	crowaddr = crow::address(coreaddr);
+	std::string saddr = argv[1];
+	addr = crow::address(saddr);
 
-	crow::udpgate udpgate;
-	udpgate.open(udpaddr);
-	udpgate.bind(12);
-
-	crow::diagnostic_enable();
-
-	std::thread thr(thread_function);
+	std::thread thr(foo);
 
 	crow::start_spin();
 	crow::join_spin();

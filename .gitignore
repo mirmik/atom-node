@@ -49,3 +49,4 @@ ltest/runtests
 test/runtests_installed
 travis.log
 
+atom-node
