@@ -17,13 +17,11 @@ class Node : public crow::node
 {
 	virtual void incoming_packet(crow::packet *pack)
 	{
-		nos::println("incoming_packet");
 		crow::release(pack);
 	}
 
 	virtual void undelivered_packet(crow::packet *pack)
 	{
-		nos::println("undelivered_packet");
 		notify_all(-1);
 		crow::release(pack);
 	}
@@ -31,6 +29,7 @@ class Node : public crow::node
 
 crow::udpgate ugate;
 crow::hostaddr addr;
+std::string machine_name;
 Node alive_sender;
 
 
@@ -43,7 +42,7 @@ void foo()
 	{
 		igris::trent tr;
 
-		tr["mnemo"] = "aidan";
+		tr["mnemo"] = machine_name;
 		tr["count"] = counter++;
 
 		std::string str = nos::format("{}", tr);
@@ -55,12 +54,11 @@ void foo()
 
 int main(int argc, char ** argv)
 {
-	crow::diagnostic_setup(true);
-
-	ugate.open(10042);
+	ugate.open(10043);
 	ugate.bind(12);
 
 	std::string saddr = argv[1];
+	machine_name = argv[2];
 	addr = crow::address(saddr);
 
 	std::thread thr(foo);
