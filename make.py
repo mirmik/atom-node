@@ -7,7 +7,9 @@ licant.cxx_application("atom-node",
 	srcdir="src",
 	sources=["main.cpp"],
 	include_paths=["src"],
-	libs=["crow", "nos", "pthread", "igris"],
+	libs=["crow", "nos", "pthread", "igris", "notify"],
+	cxx_flags = "-g",
+	cc_flags = "-g",
 )
 
 licant.install.install_application(
