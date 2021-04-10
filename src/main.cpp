@@ -16,6 +16,7 @@
 
 #include <libnotify/notify.h>
 
+int WITHOUT_NOTIFY = 0;
 NotifyNotification * N;
 
 class Node : public crow::node
@@ -23,12 +24,15 @@ class Node : public crow::node
 	virtual void incoming_packet(crow::packet *pack)
 	{
 		crow::node_packet_ptr ptr(pack);
-		N = notify_notification_new("Atom",
-		                        ptr.message().data(),
-		                        "/home/mirmik/project/atom-node/icon.png");
-		notify_notification_set_timeout(N, 10000); // 10 seconds
-		notify_notification_show(N, 0);
 
+		if (!WITHOUT_NOTIFY)
+		{
+			N = notify_notification_new("Atom",
+			                            ptr.message().data(),
+			                            "/home/mirmik/project/atom-node/icon.png");
+			notify_notification_set_timeout(N, 10000); // 10 seconds
+			notify_notification_show(N, 0);
+		}
 
 		crow::release(pack);
 	}
@@ -86,14 +90,17 @@ int main(int argc, char ** argv)
 
 	notify_init("Atom");
 	N = notify_notification_new ("Start",
-	                        "Atom node is sucessfually started",
-	                        "/home/mirmik/project/atom-node/icon.png");
+	                             "Atom node is sucessfually started",
+	                             "/home/mirmik/project/atom-node/icon.png");
 	notify_notification_set_timeout(N, 10000); // 10 seconds
 
+
+	printf("%s", getenv("DISPLAY"));
 	if (!notify_notification_show(N, 0))
 	{
 		std::cerr << "Notification is not worked" << std::endl;
-		return -1;
+		WITHOUT_NOTIFY = 1;
+		//return -1;
 	}
 
 	ugate.open(10043);
