@@ -63,7 +63,7 @@ void foo()
 
 		std::string str = nos::format("{}", tr);
 
-		alive_sender.send(42, addr, str, 0, 50, false);
+		alive_sender.send(42, addr, str, 0, 50);
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 }
