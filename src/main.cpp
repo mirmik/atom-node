@@ -12,6 +12,8 @@
 #include <igris/getopt/cliopts.h>
 
 #include <nos/fprint.h>
+#include <nos/inet/tcp_server.h>
+#include <nos/inet/tcp_client.h>
 #include <libnotify/notify.h>
 
 #include <service.h>
@@ -69,6 +71,33 @@ void foo()
 	}
 }
 
+void client_handle(nos::inet::tcp_socket client)
+{
+	nos::println("New connection");
+	while (1)
+	{
+		char buf[128];
+		int len = client.read(buf, 128);
+		if (len <= 0) break;
+		buf[len] = 0;
+
+		std::string cmd = igris::trim(std::string(buf, len));
+		if (cmd == "stopall") 
+		{
+			service_controller.stop_all();
+		}
+		else if (cmd == "startall") 
+		{
+			service_controller.start_all();
+		}
+		else if (cmd == "statusall") 
+		{
+			service_controller.status_all();
+		}
+	}
+	nos::println("Close connection");
+}
+
 int main(int argc, char ** argv)
 {
 	igris::cliopts cliopts;
@@ -89,20 +118,18 @@ int main(int argc, char ** argv)
 		return -1;
 	}
 
-	notify_init("Atom");
-	N = notify_notification_new ("Start",
+	//notify_init("Atom");
+	/*N = notify_notification_new ("Start",
 	                             "Atom node is sucessfually started",
 	                             "/home/mirmik/project/atom-node/icon.png");
 	notify_notification_set_timeout(N, 10000); // 10 seconds
 
-
-	printf("%s", getenv("DISPLAY"));
 	if (!notify_notification_show(N, 0))
 	{
 		std::cerr << "Notification is not worked" << std::endl;
 		WITHOUT_NOTIFY = 1;
 		//return -1;
-	}
+	}*/
 
 	ugate.open(10043);
 	ugate.bind(12);
@@ -111,9 +138,19 @@ int main(int argc, char ** argv)
 	machine_name = args[2];
 	addr = crow::address(saddr);
 
-	std::thread thr(foo);
+	//std::thread thr(foo);
 	service_controller.open();
 
 	crow::start_spin();
+
+
+	nos::inet::tcp_server console("0.0.0.0", 19089);
+	while (1)
+	{
+		nos::println("accept");
+		auto client = console.accept();
+		std::thread(client_handle, client).detach();
+	}
+
 	crow::join_spin();
 }

@@ -8,8 +8,9 @@ licant.cxx_application("atom-node",
 	sources=["main.cpp"],
 	include_paths=["src"],
 	libs=["crow", "nos", "pthread", "igris", "notify"],
-	cxx_flags = "-g $(pkg-config --cflags glib-2.0 gdk-pixbuf-2.0)",
-	cc_flags = "-g $(pkg-config --cflags glib-2.0 gdk-pixbuf-2.0)",
+	cxx_flags = "-g $(pkg-config --cflags glib-2.0 gdk-pixbuf-2.0)  -fsanitize=address",
+	cc_flags = "-g $(pkg-config --cflags glib-2.0 gdk-pixbuf-2.0) -fsanitize=address",
+	ld_flags = "  -fsanitize=address "
 )
 
 licant.install.install_application(
