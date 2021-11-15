@@ -1,0 +1,9 @@
+[Unit]
+Description=Crow brocker
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/atom-node
+
+[Install]
+WantedBy=multi-user.target

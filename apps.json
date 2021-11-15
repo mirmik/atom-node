@@ -1,0 +1,14 @@
+{
+	"services" : 
+	{
+		"crowker" : 
+		{
+			"exec" : "crowker"
+		}
+	},
+
+	"packages" : 
+	{
+		"zippo" : [ "crowker", "sensors", "zippo_bluetooth_controller" ]
+	}
+}

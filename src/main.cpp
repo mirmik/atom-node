@@ -1,7 +1,6 @@
 #include <crow/tower.h>
 #include <crow/address.h>
 #include <crow/proto/node.h>
-#include <crow/pubsub/publisher.h>
 #include <crow/gates/udpgate.h>
 
 #include <thread>
@@ -13,8 +12,9 @@
 #include <igris/getopt/cliopts.h>
 
 #include <nos/fprint.h>
-
 #include <libnotify/notify.h>
+
+#include <service.h>
 
 int WITHOUT_NOTIFY = 0;
 NotifyNotification * N;
@@ -79,7 +79,7 @@ int main(int argc, char ** argv)
 
 	if (debug)
 	{
-		crow::diagnostic_setup(true, false);
+		crow::diagnostic_setup(false);
 	}
 
 	if (args.size() != 3)
