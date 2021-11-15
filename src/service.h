@@ -23,7 +23,25 @@ public:
 
 	void open() 
 	{
-		config_trent = igris::json::parse_file(config_path);
+		config_trent = 
+igris::json::parse(R"(
+{
+	"services" : 
+	{
+		"crowker" : 
+		{
+			"exec" : "crowker"
+		}
+	},
+
+	"packages" : 
+	{
+		"zippo" : [ "crowker", "sensors", "zippo_bluetooth_controller" ]
+	}
+}
+)");
+
+		//config_trent = igris::json::parse_file(config_path);
 		validate_check();
 	}
 

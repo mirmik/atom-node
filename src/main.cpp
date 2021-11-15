@@ -18,6 +18,7 @@
 
 int WITHOUT_NOTIFY = 0;
 NotifyNotification * N;
+service_controller service_controller;
 
 class Node : public crow::node
 {
@@ -111,6 +112,7 @@ int main(int argc, char ** argv)
 	addr = crow::address(saddr);
 
 	std::thread thr(foo);
+	service_controller.open();
 
 	crow::start_spin();
 	crow::join_spin();
