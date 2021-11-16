@@ -20,7 +20,7 @@
 
 int WITHOUT_NOTIFY = 0;
 NotifyNotification * N;
-service_controller service_controller;
+service_controller srvsctr;
 
 class Node : public crow::node
 {
@@ -84,15 +84,15 @@ void client_handle(nos::inet::tcp_socket client)
 		std::string cmd = igris::trim(std::string(buf, len));
 		if (cmd == "stopall") 
 		{
-			service_controller.stop_all();
+			srvsctr.stop_all();
 		}
 		else if (cmd == "startall") 
 		{
-			service_controller.start_all();
+			srvsctr.start_all();
 		}
 		else if (cmd == "statusall") 
 		{
-			service_controller.status_all();
+			srvsctr.status_all();
 		}
 	}
 	nos::println("Close connection");
@@ -102,21 +102,23 @@ int main(int argc, char ** argv)
 {
 	igris::cliopts cliopts;
 	cliopts.add_option("debug", 'd');
+	cliopts.add_string("crowaddr", 'c', ".12.127.0.0.1.10009");
 	cliopts.parse(argc, argv);
 
 	auto args = cliopts.get_args();
 	bool debug = cliopts.get_option("debug");
+	std::string crowaddr = cliopts.get_string("crowaddr");
 
 	if (debug)
 	{
 		crow::diagnostic_setup(false);
 	}
 
-	if (args.size() != 3)
+	/*if (args.size() != 3)
 	{
-		nos::println("Usage: atom-node CROWADDR MACHINE");
+		nos::println("Usage: atom-node MACHINE");
 		return -1;
-	}
+	}*/
 
 	//notify_init("Atom");
 	/*N = notify_notification_new ("Start",
@@ -134,20 +136,21 @@ int main(int argc, char ** argv)
 	ugate.open(10043);
 	ugate.bind(12);
 
-	std::string saddr = args[1];
-	machine_name = args[2];
-	addr = crow::address(saddr);
+	machine_name = "noname";
+	addr = crow::address(crowaddr);
 
 	//std::thread thr(foo);
-	service_controller.open();
+	srvsctr = service_controller("apps.json");
 
 	crow::start_spin();
 
 
 	nos::inet::tcp_server console("0.0.0.0", 19089);
+	console.reusing(true);
+	
+	nos::println("Console created on tcp:19089");
 	while (1)
 	{
-		nos::println("accept");
 		auto client = console.accept();
 		std::thread(client_handle, client).detach();
 	}

@@ -10,28 +10,60 @@
 
 #include <chrono>
 #include <thread>
+#include <memory>
 
-class service 
+enum class ServiceStatus
+{
+	Runned,
+	Dead,
+	Terminated,
+};
+
+
+class service_controller;
+class service
 {
 	std::string name;
 	std::string execcmd;
 	subprocess::popen subproc;
+	ServiceStatus _status = ServiceStatus::Dead;
 
 public:
-	service(const std::string& name, const std::string& execcmd) : name(name), execcmd(execcmd) {}
+	service(
+	    const std::string& name,
+	    const std::string& execcmd)
+		:
+		name(name), execcmd(execcmd)
+	{}
 
-	void start() 
+	void start()
 	{
-		nos::println("start", name, ":", execcmd);
-		subproc = subprocess::popen(execcmd, std::vector<std::string>{});
+		_status = ServiceStatus::Runned;
+		subproc = subprocess::popen(execcmd, std::vector<std::string> {});
+		nos::fprintln("start: {} ({}) : {}", name, subproc.pid(), execcmd);
 	}
 
-	void print_status() 
+	void stop()
+	{
+		if (_status != ServiceStatus::Runned)
+			return;
+
+		_status = ServiceStatus::Terminated;
+		subproc.terminate();
+		nos::println("terminated", name);
+	}
+
+	ServiceStatus status() const
+	{
+		return _status;
+	}
+
+	void print_status()
 	{
 		std::cout << subproc.stdout().rdbuf() << std::endl;
 	}
 
-	int runned() 
+	int runned()
 	{
 		int stat;
 		int status = waitpid(subproc.pid(), &stat, WNOHANG);
@@ -40,24 +72,54 @@ public:
 	}
 };
 
-class service_controller 
+class service_controller
 {
-	const std::string config_path;
+	std::string config_path;
 	igris::trent config_trent;
 	std::vector<std::unique_ptr<service>> services;
 
+	std::thread status_checker_thread;
+	std::shared_ptr<bool> checker_runned = std::make_shared<bool>(false);
+
 public:
-	service_controller() = default; 
-	service_controller(const std::string & path) 
+	service_controller() = default;
+	service_controller& operator=(service_controller &&) = default;
+	service_controller(const std::string & path)
 		: config_path(path)
 	{
+		nos::println("open");
 		open();
+
+		nos::println("create_status_checker_thread");
+		run_checker();
 	}
 
-	void open() 
+	void run_checker()
 	{
-		config_trent = 
-igris::json::parse(R"(
+		status_checker_thread = std::thread([](std::shared_ptr<bool> checker_runned)
+		{
+			nos::println("checker_run");
+			while (1)
+			{
+				int sts;
+				pid_t pid = wait(&sts);
+				if (pid == -1)
+				{
+					*checker_runned = false;
+					nos::println("checker_stop");
+					return;
+				}
+
+				nos::println("finished: pid:", pid);
+			}
+		}, checker_runned);
+		*checker_runned = true;
+	}
+
+	void open()
+	{
+		config_trent =
+		    igris::json::parse(R"(
 {
 	"services" : 
 	{
@@ -66,9 +128,9 @@ igris::json::parse(R"(
 			"exec" : "/usr/local/bin/crowker"
 		},
 
-		"ls" : 
+		"dataproxy" : 
 		{
-			"exec" : "/usr/bin/lc"
+			"exec" : "/home/mirmik/project/radioline/rfmeask_dataproxy/dataproxy"
 		}
 	},
 
@@ -89,8 +151,8 @@ igris::json::parse(R"(
 			services.push_back(std::move(serv));
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		services[1]->print_status();
+//		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//		services[1]->print_status();
 	}
 
 	void validate_check() 
@@ -109,7 +171,7 @@ igris::json::parse(R"(
 	{
 		for (auto & service : services) 
 		{
-			//service.stop();
+			service->stop();
 		}
 	}
 
@@ -117,7 +179,14 @@ igris::json::parse(R"(
 	{
 		for (auto & service : services) 
 		{
-			//service.start();
+			if (service->status() != ServiceStatus::Runned)
+				service->start();
+		}
+
+		if (*checker_runned == false) 
+		{
+			status_checker_thread.join();
+			run_checker();
 		}
 	}
 
